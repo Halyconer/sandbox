@@ -92,6 +92,19 @@ Read [PEP 3333](https://peps.python.org/pep-3333/) while implementing this
 section. Do not proceed until the server/application calling convention is
 clear.
 
+> **Handler vs WSGI middleware:** `timing_middleware(func)` at
+> `wsgi/application/middleware.py:6` wraps `func(request)->response`
+> (handler middleware, applied inside `WSGIApplication.apply_middleware`).
+> Real WSGI middleware wraps the WSGI app itself
+> `def wsgi_timing_middleware(app): def wrapper(environ, start_response):`
+> and is applied outside `app = WSGIApplication(); app =
+> wsgi_timing_middleware(app)` before `WSGIServer(app, ...)` at
+> `wsgi/application.py:12`. The server calls `wrapper(environ,
+> start_response)` at `wsgi/server/server.py:156`, which logs
+> `environ["REQUEST_METHOD"]`/`["PATH_INFO"]` from `wsgi/server/wsgi.py:21`
+> and then calls `app(environ, start_response)` at
+> `wsgi/application/application.py:69`.
+
 Finish this stage before studying Flask. The goal is to understand who owns
 the socket, who creates `environ`, who calls the application, and what
 `start_response` represents.

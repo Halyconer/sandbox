@@ -147,7 +147,7 @@ class HTTPClient:
             "headers": headers,
             "body": body,
         }
-        print(f"Received HTTP {status_code} {reason} from {self.addr}: " f"{body!r}")
+        print(f"Received HTTP {status_code} {reason} from {self.addr}: {body!r}")
         self.close()
 
     def close(self):

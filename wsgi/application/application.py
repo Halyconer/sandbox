@@ -7,13 +7,14 @@ from .router import Router
 from .template import Template
 from .request import Request
 from .response import PlainTextResponse, BaseResponse, JSONResponse, NotFoundResponse
+from collections.abc import Callable
 
 
 class WSGIApplication:
     """A class representing a WSGI application."""
 
     def __init__(
-        self, middleware: list[callable] = None, template_engine: object = None
+        self, middleware: list[Callable] | None = None, template_engine: object = None
     ):
         """Initialize the WSGI application.
         Args:
@@ -22,7 +23,7 @@ class WSGIApplication:
         """
         self.router = Router()
         self.app_dir = self._get_app_dir()
-        self.middleware = middleware
+        self.middleware = middleware if not None else None
         self.template_engine = (
             template_engine if template_engine is not None else Template
         )

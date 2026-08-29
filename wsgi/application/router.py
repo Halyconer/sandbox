@@ -25,7 +25,7 @@ class Router:
     """A class representing a router."""
 
     def __init__(self):
-        self.routes = dict()
+        self.routes = {}
 
     def register(self, path: str, http_method: str, func: Callable):
         """Register a path operation.

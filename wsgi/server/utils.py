@@ -19,15 +19,6 @@ def get_directory_path():
     return args.directory
 
 
-def print_welcome_message(app):
-    """Print the welcome message."""
-    print_log("Welcome the Simple WSGI Server!")
-    print_log(f"Listening on {app.host}:{app.port}...\n")
-    print_log("Press Ctrl+C to quit.\n")
-    if app:
-        print_avaliabe_endpoints(app)
-
-
 def print_avaliabe_endpoints(app):
     """Print the available endpoints."""
     print_log("Available endpoints:")

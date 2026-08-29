@@ -63,9 +63,9 @@ class HTTPConnection:
             self.close()
 
     def process_events(self, mask):
-        if mask & selectors.EVENT_READ:
+        if selectors.EVENT_READ:
             self.read()
-        if mask & selectors.EVENT_WRITE:
+        if selectors.EVENT_WRITE:
             self.write()
 
     def read(self):

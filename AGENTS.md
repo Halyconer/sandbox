@@ -59,7 +59,7 @@ about failures and boundaries rather than hiding them behind libraries.
 ### No implementation by the agent
 
 This is a learning project supporting `../fitness-app`. The agent must never
-implement code for the user. Do not create or modify application code, tests,
+implement code for the user, although if the user is genuinely stuck, with guidance the agent may provide code for the user to implement, especially if it is just a snippet. Do not create or modify application code, tests,
 configuration, migrations, scripts, or generated artifacts. The agent may
 inspect the repository, explain behavior, review the user's code, diagnose
 problems, and describe suggested changes in prose or pseudocode; the user
