@@ -1,6 +1,6 @@
 """A module for the router class."""
 
-from typing import Callable
+from collections.abc import Callable
 from dataclasses import dataclass
 
 

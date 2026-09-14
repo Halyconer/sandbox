@@ -2,12 +2,13 @@
 
 import socket
 import sys
+import traceback
+from collections.abc import Callable, Iterable
+from io import BytesIO
 
-from ..application import WSGIApplication
 from .constant import BUFFER_SIZE
 from .log import print_log
 from .wsgi import WSGIRequest, WSGIResponse
-from io import BytesIO
 
 
 class WSGIServer:
@@ -15,7 +16,7 @@ class WSGIServer:
 
     def __init__(
         self,
-        app: WSGIApplication,
+        app: Callable,
         host: str = "localhost",
         port: int = 8080,
     ) -> None:
@@ -48,8 +49,6 @@ class WSGIServer:
                 break
             except Exception as e:
                 print_log(f"An error occurred: {e}", error=True)
-                server_socket.close()
-                break
         # Close the server socket
         server_socket.close()
         # Print the server shutdown message
@@ -63,7 +62,10 @@ class Connection:
     """
 
     def __init__(
-        self, client_socket: socket.socket, client_address: tuple, app: WSGIApplication
+        self,
+        client_socket: socket.socket,
+        client_address: tuple,
+        app: Callable,
     ) -> None:
         self.client_socket = client_socket
         self.client_address = client_address
@@ -138,29 +140,98 @@ class Connection:
             raise ConnectionError("Client disconnected before completing the request")
         return self._parse_request()
 
+    def failure_path(self, exc_info):
+        if self.response.headers_sent:
+            print_log(
+                f"We encountered an error on our end: {exc_info[1]} \r\n {traceback.format_exc()}",
+                error=True,
+            )
+            self.client_socket.close()
+            return
+        print_log(
+            f"We encountered an error on our end: {exc_info[1]} \r\n {traceback.format_exc()}",
+            error=True,
+        )
+        self.response.body = b"Internal Server Error"
+        self.response.headers = [
+            ("Content-Type", "text/plain"),
+            ("Content-Length", str(len(self.response.body))),
+            ("Connection", "close"),
+        ]
+        self.response.status = "500 Internal Server Error"
+        response = self.response.to_http()
+        self.response.headers_sent = True
+        self.client_socket.sendall(response)
+        self.client_socket.close()
+        print_log("Client socket closed", error=True)
+
+    def stream(self, itr: Iterable):
+        headers_response = self.response.make_response(
+            self.response.status, self.response.headers, body=b""
+        )
+        self.client_socket.sendall(headers_response)
+        self.response.headers_sent = True
+        try:
+            for item in itr:
+                self.client_socket.sendall(item)
+        finally:
+            if hasattr(itr, "close"):
+                itr.close()
+
     def run(self):
         """Read and parse a single HTTP request"""
         try:
             while True:
-                parsed_request = self.read()
-                if parsed_request is None:
-                    # The request is incomplete
-                    continue
-                print(parsed_request)
-                # Converting the request into digestible data for the app
-                self.request.http_method = parsed_request["method"]
-                self.request.path = parsed_request["target"]
-                self.request.headers = parsed_request["headers"]
-                self.request.body = BytesIO(parsed_request["body"])
-                environ = self.request.to_environ()
-                chunks = self.app(environ, self.response.start_response)
-                self.response.body = b"".join(chunks)
-                # the application returns a plaint text response object.
-                http_bytes = self.response.to_http()
-                self.client_socket.sendall(http_bytes)
-                break
-        except (ConnectionError, ValueError) as error:
-            print(f"Connection error: {error}")
+                # Attempting to parse
+                try:
+                    parsed_request = self.read()
+                    if parsed_request is None:
+                        # This means that the request is incomplete
+                        # so we need to try again
+                        continue
+                    print(f"Parsed request: {parsed_request}")
+                    self.request.http_method = parsed_request["method"]
+                    self.request.path = parsed_request["target"]
+                    self.request.headers = parsed_request["headers"]
+                    self.request.body = BytesIO(parsed_request["body"])
+
+                except ValueError:
+                    # Request was no bueno
+                    print_log("The request was malformed", error=True)
+                    self.response.body = b"Bad Request"
+                    self.response.headers = [
+                        ("Content-Type", "text/plain"),
+                        ("Content-Length", str(len(self.response.body))),
+                        ("Connection", "close"),
+                    ]
+                    self.response.status = "400 Bad Request"
+                    response = self.response.to_http()
+                    self.client_socket.sendall(response)
+                    self.client_socket.close()
+                    print_log("Client socket closed", error=True)
+                    break
+                # Send the request to the app to process
+                try:
+                    environ = self.request.to_environ()
+                    chunks = self.app(environ, self.response.start_response)
+                # Broad exception to handle whatever the app passes up
+                except Exception as error:
+                    self.failure_path(sys.exc_info())
+                    break
+                # Now sending back to the client
+                try:
+                    self.stream(chunks)
+                    break
+                except (ConnectionResetError, BrokenPipeError):
+                    print_log("Lost connection to client, closing socket", error=True)
+                    self.client_socket.close()
+                    break
+                except Exception as error:
+                    self.failure_path(sys.exc_info())
+                    break
+        except (ConnectionResetError, BrokenPipeError):
+            print_log("Lost connection to client, closing socket", error=True)
+            self.client_socket.close()
         finally:
             self.client_socket.close()
             print_log(f"Socket closed with {self.client_address}")

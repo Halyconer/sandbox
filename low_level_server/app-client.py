@@ -1,8 +1,8 @@
-import sys
-import socket
 import selectors
-import types
+import socket
+import sys
 import traceback
+import types
 
 import low_level_server.libclient as libclient
 

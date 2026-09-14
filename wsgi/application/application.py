@@ -1,21 +1,23 @@
 """A module for the WSGI application class."""
 
 import sys
+from collections.abc import Generator, Iterable, Iterator
 
-
+from .request import Request
+from .response import (
+    BaseResponse,
+    JSONResponse,
+    NotFoundResponse,
+    PlainTextResponse,
+)
 from .router import Router
 from .template import Template
-from .request import Request
-from .response import PlainTextResponse, BaseResponse, JSONResponse, NotFoundResponse
-from collections.abc import Callable
 
 
 class WSGIApplication:
     """A class representing a WSGI application."""
 
-    def __init__(
-        self, middleware: list[Callable] | None = None, template_engine: object = None
-    ):
+    def __init__(self, template_engine: object = None):
         """Initialize the WSGI application.
         Args:
             middleware (list[callable], optional): The middleware. Defaults to None.
@@ -23,7 +25,6 @@ class WSGIApplication:
         """
         self.router = Router()
         self.app_dir = self._get_app_dir()
-        self.middleware = middleware if not None else None
         self.template_engine = (
             template_engine if template_engine is not None else Template
         )
@@ -75,30 +76,25 @@ class WSGIApplication:
         Returns:
             list: The response body.
         """
+
         route_handler = self.router.get_route_handler(
             environ["PATH_INFO"], environ["REQUEST_METHOD"]
         )
         if route_handler is None:
             response = NotFoundResponse()
         else:
-            route_handler = self.apply_middleware(route_handler)
             request = Request.from_environ(environ)
-            response = route_handler(request=request)
-            if isinstance(response, dict):
-                response = JSONResponse(body=response)
-            elif not isinstance(response, BaseResponse):
-                response = PlainTextResponse(body=response)
+            result = route_handler(request=request)
+            if isinstance(result, dict):
+                response = JSONResponse(body=result)
+            elif isinstance(result, Iterable):
+                start_response("200 OK", [])
+                return result
+            elif not isinstance(result, BaseResponse):
+                response = PlainTextResponse(body=result)
+            else:
+                # Response is already a BaseResponse
+                response = result
         start_response(response.status, response.headers)
+        # This is where we would potentially need to re-raise because headers have been set
         return [response.body]
-
-    def apply_middleware(self, func):
-        """Apply middleware to the function.
-        Args:
-            func: The function.
-        Returns:
-            callable: The wrapped function.
-        """
-        if self.middleware is not None:
-            for middleware in self.middleware:
-                func = middleware(func)
-        return func

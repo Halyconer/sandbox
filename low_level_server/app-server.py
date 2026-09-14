@@ -1,7 +1,8 @@
-import socket
 import selectors
-import low_level_server.libserver as libserver
+import socket
 import traceback
+
+import low_level_server.libserver as libserver
 
 sel = selectors.DefaultSelector()
 

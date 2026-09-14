@@ -1,6 +1,6 @@
 """This module contains the enums used in the server module."""
 
-from enum import StrEnum, Enum
+from enum import Enum, StrEnum
 
 
 class HttpMethod(StrEnum):

@@ -3,6 +3,8 @@
 from io import BytesIO
 from typing import Any
 
+from .validators import validate_headers, validate_status
+
 
 class WSGIRequest:
     """A class representing a WSGI request."""
@@ -49,15 +51,32 @@ class WSGIResponse:
         self.status = ""
         self.body: bytes = b""
         self.headers: list[tuple[str, str]] = []
-        self.is_sent = False
+        self.headers_set = False
+        self.headers_sent = False
 
     def start_response(
         self, status: str, headers: list[tuple[str, str]], exc_info=None
     ):
         """Start the response with the status and headers."""
-        print("Start response with", status, headers)
+        print(
+            "Start response with empty status and headers to be assigned by application: ",
+            status,
+            headers,
+        )
+        if exc_info:
+            try:
+                if self.headers_sent:
+                    raise exc_info[1].with_traceback(exc_info[2])
+            finally:
+                exc_info = None
+
+        elif self.headers_set:
+            raise AssertionError("Headers already set!")
         self.status = status
         self.headers = headers
+        self.headers_set = True
+        validate_status(self.status)
+        validate_headers(self.headers)
 
     def create_status_line(self, status: str = "200 OK") -> str:
         """Create the status line for the HTTP response.
@@ -96,12 +115,12 @@ class WSGIResponse:
         content = [
             self.create_status_line(status).encode("utf-8"),
             self.format_headers(headers).encode("utf-8"),
-            b"\r\n" if body else b"",
+            b"\r\n",
+            # If body is empty, this should remain empty
             body,
         ]
         return b"".join(content)
 
     def to_http(self):
         """Convert the response to a HTTP response message."""
-        self.is_sent = True
         return self.make_response(self.status, self.headers, self.body)

@@ -1,6 +1,7 @@
 """Utility functions for the server."""
 
 import argparse
+
 from .log import print_log
 
 

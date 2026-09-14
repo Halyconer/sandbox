@@ -1,9 +1,9 @@
 import io
 import json
 import selectors
+import socket
 import struct
 import sys
-import socket
 
 
 class HTTPClient:

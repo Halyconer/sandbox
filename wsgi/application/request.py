@@ -1,6 +1,5 @@
 """Request class for handling incoming requests."""
 
-from typing import Dict
 from dataclasses import dataclass
 
 
@@ -8,12 +7,12 @@ from dataclasses import dataclass
 class Request:
     """A class representing a request."""
 
-    query: Dict[str, str]
+    query: dict[str, str]
     body: bytes
-    headers: Dict[str, str]
+    headers: dict[str, str]
 
     @classmethod
-    def from_environ(cls, environ: Dict):
+    def from_environ(cls, environ: dict):
         """Create a request from a WSGI environ.
         Args:
             environ (dict): The WSGI environ.
