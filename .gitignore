@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Markdown docs: keep only the root README and agent instructions
+*.md
+!README.md
+!AGENTS.md

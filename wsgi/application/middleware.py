@@ -20,7 +20,7 @@ class Middleware:
             return start_response(status, headers, exc_info)
 
         try:
-            result = wsgi_iterator(self.application(environ, start_response_wrapper))
+            result = self.application(environ, start_response_wrapper)
         except Exception:
             traceback.print_exc()
             status = "500 Internal Server Error"
@@ -35,16 +35,3 @@ class Middleware:
 
     def _join(self, data):
         """Stub for a future self-made join, which will will be a Callable passed to the server, allowing the Middleware to raise in case of a Generator mishap in the future"""
-
-
-class wsgi_iterator:
-    """A stub for an iterable we may return"""
-
-    def __init__(self, result):
-        self._next = iter(result).__next__
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return self._next()

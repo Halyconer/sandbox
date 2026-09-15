@@ -1,5 +1,6 @@
 """A module containing the WSGI server implementation."""
 
+import itertools
 import socket
 import sys
 import traceback
@@ -165,18 +166,47 @@ class Connection:
         self.client_socket.close()
         print_log("Client socket closed", error=True)
 
-    def stream(self, itr: Iterable):
+    def stream(self, itr: Iterable[bytes]):
+        def _chunk(data: bytes) -> bytes:
+            return f"{len(data):X}\r\n".encode("iso-8859-1") + data + b"\r\n"
+
+        chunked = False
+        has_length = any(
+            name.lower() == "content-length" for name, _ in self.response.headers
+        )
+        if not has_length:
+            chunked = True
+            self.response.headers.append(("Transfer-Encoding", "Chunked"))
         headers_response = self.response.make_response(
             self.response.status, self.response.headers, body=b""
         )
-        self.client_socket.sendall(headers_response)
-        self.response.headers_sent = True
         try:
-            for item in itr:
+            it = iter(itr)
+            first = next(it, None)
+            self.client_socket.sendall(headers_response)
+            self.response.headers_sent = True
+        except Exception as error:
+            self.failure_path(sys.exc_info())
+            return
+        try:
+            if first is not None:
+                chunks = itertools.chain((first,), it)
+            else:
+                chunks = it
+
+            for item in chunks:
+                if chunked:
+                    if not item:
+                        continue
+                    item = _chunk(item)
                 self.client_socket.sendall(item)
+
+            if chunked:
+                self.client_socket.sendall(b"0\r\n\r\n")
         finally:
-            if hasattr(itr, "close"):
-                itr.close()
+            close = getattr(itr, "close", None)
+            if close is not None:
+                close()
 
     def run(self):
         """Read and parse a single HTTP request"""
