@@ -1,0 +1,7 @@
+# Development tooling. Pinned deliberately: Ruff 0.16 expanded its default
+# rule set from 59 to 413 rules, so an unpinned upgrade can re-break the tree
+# with brand-new violations. Keep these in step with the Makefile.
+#
+# Install with: .venv/bin/pip install -r requirements-dev.txt
+ruff==0.16.4
+black==26.5.1
