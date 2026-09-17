@@ -1,7 +1,7 @@
 # Application Engineering Sandbox
 
-This repository is the hands-on companion to the backend/application-engineering
-track documented in Adrian Glass's [`reading.md`](../adrian-glass/reading.md).
+Hands-on companion to the backend/application-engineering track in Adrian
+Glass's [`reading.md`](../adrian-glass/reading.md).
 
 ## Goal
 
@@ -12,152 +12,101 @@ opaque:
 TCP socket → HTTP → WSGI → Flask → application layer → database
 ```
 
-The architectural goal is to understand where requests, exceptions,
-transactions, blocking I/O, and process boundaries enter a real application.
-The target is not to memorize framework APIs. It is to be able to trace an
+The target is not memorizing framework APIs. It is being able to trace an
 unfamiliar production request, explain its failure modes, and choose sensible
-boundaries between domain logic, infrastructure, and delivery mechanisms.
+boundaries between domain logic, infrastructure, and delivery.
 
 ## Working rules
 
-- Implement the exercises by hand before asking AI for an implementation.
-- AI can explain a concept, provide a small hint, quiz understanding, review
-  code, or help diagnose an observed failure.
-- Keep each exercise small enough that the complete runtime path can be held in
-  mind.
-- Record observations and failures in the exercise's notes rather than hiding
-  them behind a library.
+- Implement each exercise by hand before asking AI for an implementation.
+- AI may explain, hint, quiz, review code, and diagnose failures; it must not
+  write the implementation.
+- Keep every exercise small enough that the whole runtime path fits in your
+  head.
+- Record observations and failures in notes rather than hiding them behind a
+  library.
 - Use `curl -v`, logging, and a debugger to observe behavior.
-- Run checks, servers, clients, and manual experiments yourself. The agent may
-  inspect and review the files, but should not execute checks or experiments;
-  provide the output when you want help interpreting it.
+- Run servers, clients, and experiments yourself; supply the output when you
+  want help interpreting it.
 
-## Task sequence
+## How to read (docs are reference, not curriculum)
 
-The order below is the consolidated learning path. Implement each stage by
-hand, record what you observe, and do not move on until you can explain the
-boundary it introduces.
+- Reference docs (Flask, PEPs, library docs) assume vocabulary. Reading them
+  cold is boring for everyone — read them driven by a question, not cover to
+  cover.
+- Build the model from narrative sources: prefer O'Reilly books. For Flask,
+  *Flask Web Development* (Grinberg) is the narrative path.
+- Keep a running list of words you don't know yet; review it weekly instead of
+  chasing every doc link.
+- Read source alongside docs. This repo exists so framework internals look
+  familiar instead of magic.
 
-### 0. Multi-connection TCP bridge
+## Progress
 
-Read the multi-connection client/server section of [Real Python's socket
-guide](https://realpython.com/python-sockets/#multi-connection-client-and-server)
-and finish a small TCP echo server in this sandbox using `selectors`.
-
-- [ ] Create and register the listening socket before entering the event loop.
-- [ ] Accept multiple clients without blocking on one client.
-- [ ] Keep per-client input/output state.
-- [ ] Handle partial `recv()` and `send()` operations.
-- [ ] Unregister and close clients cleanly.
-- [ ] Test several clients, a slow client, disconnects, and Ctrl-C shutdown.
-
-The optional application-protocol section of the article is useful background
-for message framing, but the next concrete protocol here is HTTP.
-
-### 1. Raw HTTP over TCP
-
-- [ ] Create a TCP socket bound to `127.0.0.1:8000`.
-- [ ] Accept connections and print the raw request bytes.
-- [ ] Return a valid `200 OK` response with `Content-Length`.
-- [ ] Add `/`, `/health`, and a 404 response.
-- [ ] Parse the request method and path without using a web framework.
-- [ ] Send malformed requests and document what happens.
-- [ ] Add a slow handler and observe that the single-threaded server blocks.
-
-Questions to answer:
-
-- What is the difference between `bind`, `listen`, and `accept`?
-- Which socket represents the listening endpoint and which represents one
-  client connection?
-- Why does `recv()` return bytes rather than a complete HTTP request?
-- Why does the response need `\r\n` and `Content-Length`?
-- What happens to the process when the handler raises an exception?
-
-### 2. Concurrency experiments
-
-- [ ] Compare the single-threaded server with a thread-per-connection version.
-- [ ] Add process workers and compare the behavior.
-- [ ] Use concurrent requests to distinguish blocking I/O from CPU work.
-- [ ] Write down what state is shared between requests, threads, and processes.
-
-### 3. WSGI
-
-- [ ] Implement a callable `app(environ, start_response)`.
-- [ ] Run it with Python's development WSGI server.
-- [ ] Inspect the important keys in `environ`.
-- [ ] Add middleware that logs the method and path.
-- [ ] Make the application raise and identify the outer exception boundary.
-
-Read [PEP 3333](https://peps.python.org/pep-3333/) while implementing this
-section. Do not proceed until the server/application calling convention is
-clear.
-
-> **Handler vs WSGI middleware:** `timing_middleware(func)` at
-> `wsgi/application/middleware.py:6` wraps `func(request)->response`
-> (handler middleware, applied inside `WSGIApplication.apply_middleware`).
-> Real WSGI middleware wraps the WSGI app itself
-> `def wsgi_timing_middleware(app): def wrapper(environ, start_response):`
-> and is applied outside `app = WSGIApplication(); app =
-> wsgi_timing_middleware(app)` before `WSGIServer(app, ...)` at
-> `wsgi/application.py:12`. The server calls `wrapper(environ,
-> start_response)` at `wsgi/server/server.py:156`, which logs
-> `environ["REQUEST_METHOD"]`/`["PATH_INFO"]` from `wsgi/server/wsgi.py:21`
-> and then calls `app(environ, start_response)` at
-> `wsgi/application/application.py:69`.
-
-Finish this stage before studying Flask. The goal is to understand who owns
-the socket, who creates `environ`, who calls the application, and what
-`start_response` represents.
+- **0–1. TCP and raw HTTP — done.** `low_level_server/`: selector-based
+  multi-client echo and HTTP servers (request parsing, `/`, `/health`, 404,
+  malformed-request handling).
+- **2. Concurrency experiments — open, not recorded here.** Single-threaded
+  vs thread-per-connection vs process workers; blocking I/O vs CPU work. Do it
+  or record why it is deferred before treating the boundary as covered.
+- **3. WSGI — done.** `wsgi/server/` (hand-built server: framing, chunked
+  streaming, commit and error semantics) and `wsgi/application/` (router,
+  request/response, error boundary, both handler middleware and real WSGI
+  middleware). Outstanding: one end-to-end verification pass (200, 404, 500,
+  400, poisoned header, server survives).
+- **4. Flask as a WSGI application — current.**
 
 ### 4. Flask as a WSGI application
 
-- [ ] Read Flask's [application lifecycle](https://flask.palletsprojects.com/en/stable/lifecycle/)
-  and [request context](https://flask.palletsprojects.com/en/stable/reqcontext/)
-  documentation.
-- [ ] Locate Flask's `__call__` and `wsgi_app` methods in the installed source.
-- [ ] Trace setup-time route registration versus request-time route execution.
+Narrow the reading to what the question needs. Read the
+[application lifecycle](https://flask.palletsprojects.com/en/stable/lifecycle/)
+and [request context](https://flask.palletsprojects.com/en/stable/reqcontext/)
+pages as reference after finding the code they describe.
+
+- [ ] In the installed Flask source, find `__call__` and `wsgi_app`. Trace
+  setup-time route registration versus request-time route execution.
 - [ ] Trace request-context creation and teardown.
 - [ ] Compare a Python `try/except` boundary with Flask error-handler lookup.
-- [ ] Trace `../fitness-app` from its server boundary through Flask and a route.
-- [ ] Explain why the same database exception can become an HTTP response in a
-  webhook but a failed process in a CLI job.
+- [ ] Trace `../fitness-app` from Waitress through Flask to a route. Explain
+  why the same database exception becomes an HTTP response in the webhook but
+  a failed process in the CLI job.
 
-In `fitness-app`, `dev_server.py` uses Flask's development server, while the
-Dockerfile uses Waitress. In both cases, the server owns the sockets and calls
-the Flask WSGI application.
+Done when you can explain, from memory: who owns the socket, who creates
+`environ`, who calls the application, and what `start_response` commits to.
 
 ### 5. Application architecture
 
-- [ ] Build a small domain model independent of Flask and PostgreSQL.
-- [ ] Add a repository abstraction.
-- [ ] Add a service layer for use-case orchestration.
-- [ ] Add a unit-of-work or transaction boundary.
-- [ ] Translate infrastructure exceptions into application-level outcomes.
-- [ ] Connect the Flask adapter and a CLI adapter to the same application code.
+- [ ] Domain model independent of Flask and PostgreSQL.
+- [ ] Repository abstraction; service layer; unit-of-work/transaction boundary.
+- [ ] Translate infrastructure exceptions into application outcomes.
+- [ ] Flask adapter and CLI adapter over the same application code.
 
-Read the relevant chapters of [Architecture Patterns with Python](https://www.cosmicpython.com/)
-while building these components.
+Read *Architecture Patterns with Python* (cosmicpython.com) alongside this.
 
 ### 6. Production concerns
 
-- [ ] PostgreSQL transactions and isolation.
-- [ ] Idempotency and safe retries.
-- [ ] Background work and graceful shutdown.
-- [ ] Configuration and secrets.
-- [ ] Structured logging and health checks.
-- [ ] Tests at unit, integration, and HTTP boundaries.
-- [ ] ASGI and `asyncio` after the synchronous model is understood.
-- [ ] Containerization, reverse proxying, TLS, and deployment.
+PostgreSQL transactions and isolation · idempotency and safe retries ·
+background work and graceful shutdown · configuration and secrets · structured
+logging and health checks · tests at unit, integration, and HTTP boundaries ·
+ASGI and `asyncio` after the synchronous model is solid · containers, reverse
+proxy, TLS, deployment.
 
 ## Completion test
 
 Given a request to the fitness app's Hevy webhook, explain the path from the
 network socket to the database and back. For a foreign-key failure, identify:
 
-1. where PostgreSQL detects the problem;
+1. where PostgreSQL detects it;
 2. how psycopg represents it in Python;
-3. how Python propagates it through the call stack;
+3. how it propagates through the call stack;
 4. what the database context manager does;
 5. which outer boundary handles it for a webhook;
-6. why the nightly CLI job has a different result; and
-7. which layer should translate it into an application outcome or HTTP status.
+6. why the nightly CLI job gets a different result; and
+7. which layer translates it into an application outcome or HTTP status.
+
+## Pacing and play
+
+One main track at a time. Play is allowed — budget it explicitly (a bounded
+side quest such as a graphics weekend), keep the same from-scratch rule, and
+watch for it quietly replacing track time. If that happens, it is data, not
+failure: name it and rebalance.

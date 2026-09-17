@@ -21,7 +21,8 @@ class Middleware:
 
         try:
             result = self.application(environ, start_response_wrapper)
-        except Exception:
+        # WSGI error boundary: app exceptions become a 500 response.
+        except Exception:  # noqa: BLE001
             traceback.print_exc()
             status = "500 Internal Server Error"
             response = HTTPErrorResponse(

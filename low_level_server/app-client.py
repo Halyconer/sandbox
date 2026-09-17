@@ -2,9 +2,8 @@ import selectors
 import socket
 import sys
 import traceback
-import types
 
-import low_level_server.libclient as libclient
+from low_level_server import libclient
 
 sel = selectors.DefaultSelector()
 messages = [b"Message 1 from client.", b"Message 2 from client."]
@@ -38,17 +37,17 @@ def create_request(request):
         return None
 
     if action == "search":
-        return dict(
-            type="text/json",
-            encoding="utf-8",
-            content=dict(action=action, value=value),
-        )
+        return {
+            "type": "text/json",
+            "encoding": "utf-8",
+            "content": {"action": action, "value": value},
+        }
     else:
-        return dict(
-            type="binary/custom-client-binary-type",
-            encoding="binary",
-            content=bytes(action + value, encoding="utf-8"),
-        )
+        return {
+            "type": "binary/custom-client-binary-type",
+            "encoding": "binary",
+            "content": bytes(action + value, encoding="utf-8"),
+        }
 
 
 def main(HOST: str, PORT: int, request: str) -> None:
@@ -68,7 +67,8 @@ def main(HOST: str, PORT: int, request: str) -> None:
                 message = key.data
                 try:
                     message.process_events(mask)
-                except Exception:
+                # A single client error must not tear down the accept loop.
+                except Exception:  # noqa: BLE001
                     print(
                         f"Main: Error: Exception for {message.addr}:\n"
                         f"{traceback.format_exc()}"
@@ -85,4 +85,4 @@ def main(HOST: str, PORT: int, request: str) -> None:
         sel.close()
 
 
-main(str("127.0.0.1"), int(8000), "/health")
+main("127.0.0.1", 8000, "/health")

@@ -1,68 +1,64 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## What this is
 
-This is a deliberately incremental Python application-engineering sandbox. The
-root `README.md` is the learning plan and architectural reference. `app.py` is
-the current implementation entry point; keep early experiments small and
-focused there, then split stable code into modules as the exercises introduce
-WSGI, Flask, domain, infrastructure, and CLI layers. Place tests in `tests/`
-and exercise notes near the code they document (for example, `notes/` or a
-short `README.md`). No asset or generated-output directory is currently used.
+A deliberately incremental Python application-engineering sandbox: small
+components implemented by hand until the path socket → HTTP → WSGI → Flask →
+database is legible. `README.md` is the learning plan and the source of truth
+for stage order and status. It supports the `../fitness-app` work.
 
-## Build, Test, and Development Commands
+## Layout
 
-There is no build system or dependency manifest yet. Run the current script
-with:
+- `low_level_server/` — finished socket exercises: selector-based
+  multi-client echo and raw HTTP servers, adapted from Real Python's socket
+  guide.
+- `wsgi/server/` — hand-built WSGI server: request parsing, framing, chunked
+  streaming, commit and error semantics.
+- `wsgi/application/` — hand-built WSGI application: router, middleware,
+  request/response classes, templates, error boundary.
+- `wsgi/run.py` — demo app wiring both halves together.
+- `notes/` — local study notes. Git tracks only `README.md` and `AGENTS.md`;
+  other markdown is ignored.
 
-```bash
-python3 app.py
-```
+## Commands
 
-When a server is running, inspect it with commands such as
-`curl -v http://127.0.0.1:8000/`. After tests are added, use
-`python3 -m pytest`; keep any required local services or environment variables
-documented in `README.md`.
+- `make run` — run the demo server (`.venv/bin/python wsgi/run.py`).
+- `make check` — non-destructive lint and format check (`ruff`, `black`).
+- `make fmt` — autofix, then format.
+- Tooling is pinned in `requirements-dev.txt`; install with
+  `.venv/bin/pip install -r requirements-dev.txt`.
 
-## Coding Style & Naming Conventions
+No test framework yet. When a layer stabilizes, add focused tests under
+`tests/` (for example `test_http_parser.py`, `test_health_endpoint()`).
 
-Use Python 3, four-space indentation, readable type and variable names, and
-`snake_case` for functions, variables, and modules. Use `PascalCase` for
-classes and `UPPER_SNAKE_CASE` for constants. Prefer the standard library in
-foundational exercises, explicit control flow, and small functions that make
-request boundaries, exceptions, blocking I/O, and transactions visible. Add a
-formatter or linter only when the project adopts a dependency configuration.
+## Style
 
-## Testing Guidelines
+Python 3, four-space indentation. `snake_case` for functions, variables, and
+modules; `PascalCase` for classes; `UPPER_SNAKE_CASE` for constants. Prefer
+the standard library in foundational exercises. Keep control flow explicit so
+request boundaries, exceptions, blocking I/O, and transactions stay visible.
+Comments and docstrings explain behavior; they do not restate it.
 
-No test framework or coverage threshold is configured yet. Add focused tests
-under `tests/`, using names such as `test_http_parser.py` and
-`test_health_endpoint()`. Test each layer as it appears: pure domain behavior
-first, then socket/HTTP, application, and database boundaries. Record manual
-observations from malformed or concurrent requests in notes.
+## Agent rules
 
-## Commit & Pull Request Guidelines
+**Never implement code for the user.** Do not create or modify application
+code, tests, configuration, migrations, scripts, or generated artifacts. The
+agent may inspect the repository, explain behavior, hint, quiz, review code,
+and diagnose problems, and may show a snippet when the user is genuinely
+stuck — but the user writes and applies every implementation. Exceptions:
+editing this file when the user explicitly asks for a repository-instruction
+change, and trivial formatting or configuration fixes that do not affect the
+learning path.
 
-There is no commit history to establish an existing convention. Use concise,
-imperative subjects, optionally scoped by area (for example,
-`Add raw HTTP health endpoint`). Pull requests should explain the exercise or
-behavior changed, include test commands and manual verification (such as
-`curl -v` output), and call out required services, configuration, or known
-limitations. Include screenshots only when a user-facing interface is added.
+Do not run the user's servers, checks, or experiments. The user runs them and
+supplies the output when they want help interpreting it.
 
-## Agent-Specific Instructions
+Follow the stage order in `README.md`; never introduce a framework or
+abstraction ahead of the exercise that motivates it.
 
-Follow the sequence in `README.md`. Implement and understand each exercise by
-hand before introducing a framework or abstraction, and preserve observations
-about failures and boundaries rather than hiding them behind libraries.
+## Commits and pull requests
 
-### No implementation by the agent
-
-This is a learning project supporting `../fitness-app`. The agent must never
-implement code for the user, although if the user is genuinely stuck, with guidance the agent may provide code for the user to implement, especially if it is just a snippet. Do not create or modify application code, tests,
-configuration, migrations, scripts, or generated artifacts. The agent may
-inspect the repository, explain behavior, review the user's code, diagnose
-problems, and describe suggested changes in prose or pseudocode; the user
-writes and applies the actual implementation. The only exception is editing
-this `AGENTS.md` when the user explicitly requests a repository-instruction
-change.
+Concise, imperative subjects, optionally scoped (for example `Add raw HTTP
+health endpoint`). Pull requests state the exercise or behavior changed, the
+test and manual-verification commands (such as `curl -v` output), and any
+known limitations or required services.

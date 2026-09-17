@@ -1,7 +1,7 @@
 """A module for the WSGI application class."""
 
 import sys
-from collections.abc import Generator, Iterable, Iterator
+from collections.abc import Iterable
 
 from .request import Request
 from .response import (

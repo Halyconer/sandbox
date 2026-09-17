@@ -3,6 +3,7 @@
 import itertools
 import socket
 import sys
+import threading
 import traceback
 from collections.abc import Callable, Iterable
 from io import BytesIO
@@ -29,10 +30,10 @@ class WSGIServer:
         """Run the server."""
         # Create a TCP server socket
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # IPv4, TCP
-        server_socket.bind((self.host, self.port))  # Bind the socket to the address
         server_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1
         )  # Reuse the address
+        server_socket.bind((self.host, self.port))  # Bind the socket to the address
         server_socket.listen(1)  # Listen for incoming connections
         while True:
             try:
@@ -42,13 +43,18 @@ class WSGIServer:
                 print_log(f"Socket established with {client_address}.")
                 # Create a session for the client
                 session = Connection(client_socket, client_address, self.app)
-                # Run the session. For now, I want it to be blocking
-                session.run()
+                # Run the session
+                # session.run()
+                worker = threading.Thread(target=session.run, daemon=True)
+                worker.start()
+                # No join because we don't want this to be blocking
+                # worker.join()
             except KeyboardInterrupt:
                 print_log("Server is shutting down.", error=True)
                 server_socket.close()
                 break
-            except Exception as e:
+            # Keep serving after a per-connection failure.
+            except Exception as e:  # noqa: BLE001
                 print_log(f"An error occurred: {e}", error=True)
         # Close the server socket
         server_socket.close()
@@ -185,7 +191,8 @@ class Connection:
             first = next(it, None)
             self.client_socket.sendall(headers_response)
             self.response.headers_sent = True
-        except Exception as error:
+        # The app-provided iterable may raise anything from iter()/next().
+        except Exception:  # noqa: BLE001
             self.failure_path(sys.exc_info())
             return
         try:
@@ -244,8 +251,8 @@ class Connection:
                 try:
                     environ = self.request.to_environ()
                     chunks = self.app(environ, self.response.start_response)
-                # Broad exception to handle whatever the app passes up
-                except Exception as error:
+                # Broad exception to handle whatever the app passes up.
+                except Exception:  # noqa: BLE001
                     self.failure_path(sys.exc_info())
                     break
                 # Now sending back to the client
@@ -256,7 +263,8 @@ class Connection:
                     print_log("Lost connection to client, closing socket", error=True)
                     self.client_socket.close()
                     break
-                except Exception as error:
+                # Streaming failure after headers may already be committed.
+                except Exception:  # noqa: BLE001
                     self.failure_path(sys.exc_info())
                     break
         except (ConnectionResetError, BrokenPipeError):

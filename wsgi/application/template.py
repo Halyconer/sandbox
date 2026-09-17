@@ -26,7 +26,7 @@ class Template:
     def _load_template(self) -> None:
         """Load the template"""
         if not self._verify_template():
-            return None
+            return
         with open(self.template_path, "r", encoding="UTF-8") as f:
             self.template_body = f.read()
 

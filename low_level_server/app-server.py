@@ -2,7 +2,7 @@ import selectors
 import socket
 import traceback
 
-import low_level_server.libserver as libserver
+from low_level_server import libserver
 
 sel = selectors.DefaultSelector()
 
@@ -45,7 +45,8 @@ def main(HOST: str, PORT: int, PROTOCOL: str) -> None:
                         message = key.data
                         try:
                             message.process_events(mask)
-                        except Exception:
+                        # A single client error must not tear down the accept loop.
+                        except Exception:  # noqa: BLE001
                             print(
                                 f"Main: Error: Exception for {message.addr}:\n"
                                 f"{traceback.format_exc()}"
@@ -58,4 +59,4 @@ def main(HOST: str, PORT: int, PROTOCOL: str) -> None:
         sel.close()
 
 
-main(str("127.0.0.1"), int(8000), str("http"))
+main("127.0.0.1", 8000, "http")

@@ -158,7 +158,7 @@ class HTTPClient:
         print(f"Closing connection to {self.addr}")
         try:
             self.selector.unregister(self.sock)
-        except Exception as error:
+        except (KeyError, ValueError) as error:
             print(f"Error: selector.unregister() exception for {self.addr}: {error!r}")
 
         try:
@@ -241,7 +241,7 @@ class Message:
     def _process_response_json_content(self):
         content = self.response
         if not isinstance(content, dict):
-            raise ValueError("Response content is not a JSON object.")
+            raise TypeError("Response content is not a JSON object.")
         result = content.get("result")
         print(f"Got result: {result}")
 
@@ -261,13 +261,11 @@ class Message:
         if self._jsonheader_len is None:
             self.process_protoheader()
 
-        if self._jsonheader_len is not None:
-            if self.jsonheader is None:
-                self.process_jsonheader()
+        if self._jsonheader_len is not None and self.jsonheader is None:
+            self.process_jsonheader()
 
-        if self.jsonheader:
-            if self.response is None:
-                self.process_response()
+        if self.jsonheader and self.response is None:
+            self.process_response()
 
     def write(self):
         if not self._request_queued:
@@ -275,16 +273,15 @@ class Message:
 
         self._write()
 
-        if self._request_queued:
-            if not self._send_buffer:
-                # Set selector to listen for read events, we're done writing.
-                self._set_selector_events_mask("r")
+        if self._request_queued and not self._send_buffer:
+            # Set selector to listen for read events, we're done writing.
+            self._set_selector_events_mask("r")
 
     def close(self):
         print(f"Closing connection to {self.addr}")
         try:
             self.selector.unregister(self.sock)
-        except Exception as e:
+        except (KeyError, ValueError) as e:
             print(f"Error: selector.unregister() exception for {self.addr}: {e!r}")
 
         try:
@@ -321,7 +318,7 @@ class Message:
     def process_jsonheader(self):
         hdrlen = self._jsonheader_len
         if not isinstance(hdrlen, int):
-            raise ValueError("Invalid JSON header length.")
+            raise TypeError("Invalid JSON header length.")
         if len(self._recv_buffer) >= hdrlen:
             self.jsonheader = self._json_decode(self._recv_buffer[:hdrlen], "utf-8")
             self._recv_buffer = self._recv_buffer[hdrlen:]
@@ -336,7 +333,7 @@ class Message:
 
     def process_response(self):
         if not isinstance(self.jsonheader, dict):
-            raise ValueError("Invalid JSON header.")
+            raise TypeError("Invalid JSON header.")
         content_len = self.jsonheader["content-length"]
         if not len(self._recv_buffer) >= content_len:
             return

@@ -79,7 +79,7 @@ class HTTPConnection:
         except ValueError as error:
             self._queue_response(
                 status="400 Bad Request",
-                body=f"Bad Request: {error}\n".encode("utf-8"),
+                body=f"Bad Request: {error}\n".encode(),
             )
             return
 
@@ -199,7 +199,7 @@ class HTTPConnection:
         print(f"Closing connection to {self.addr}")
         try:
             self.selector.unregister(self.sock)
-        except Exception as error:
+        except (KeyError, ValueError) as error:
             print(f"Error: selector.unregister() exception for {self.addr}: {error!r}")
 
         try:
@@ -319,18 +319,15 @@ class Message:
         if self._jsonheader_len is None:
             self.process_protoheader()
 
-        if self._jsonheader_len is not None:
-            if self.jsonheader is None:
-                self.process_jsonheader()
+        if self._jsonheader_len is not None and self.jsonheader is None:
+            self.process_jsonheader()
 
-        if self.jsonheader:
-            if self.request is None:
-                self.process_request()
+        if self.jsonheader and self.request is None:
+            self.process_request()
 
     def write(self):
-        if self.request:
-            if not self.response_created:
-                self.create_response()
+        if self.request and not self.response_created:
+            self.create_response()
 
         self._write()
 
@@ -338,7 +335,7 @@ class Message:
         print(f"Closing connection to {self.addr}")
         try:
             self.selector.unregister(self.sock)
-        except Exception as e:
+        except (KeyError, ValueError) as e:
             print(f"Error: selector.unregister() exception for {self.addr}: {e!r}")
 
         try:

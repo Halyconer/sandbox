@@ -5,6 +5,8 @@ import logging
 
 from .wsgi import WSGIRequest, WSGIResponse
 
+logger = logging.getLogger(__name__)
+
 
 def log_output(func):
     """Log the request and response."""
@@ -24,14 +26,14 @@ def print_log(message: str, error: bool = False):
     Args:
         message (str): The message to print.
     """
-    date_time = datetime.datetime.now()
+    date_time = datetime.datetime.now(datetime.UTC)
     date_time_format = date_time.strftime("%d/%m/%Y %H:%M:%S")
     log_message = f"[{date_time_format}] {message}"
     print(log_message)
     if error:
-        logging.error(log_message)
+        logger.error(log_message)
     else:
-        logging.info(log_message)
+        logger.info(log_message)
 
 
 def log_request(client_address, request: WSGIRequest, response: WSGIResponse):

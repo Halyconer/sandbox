@@ -1,8 +1,8 @@
 """A simple WSGI application example."""
 
 import re
-import reprlib
-from collections.abc import Generator, Iterable, Iterator
+from collections.abc import Iterator
+import time
 
 from wsgi.application import WSGIApplication, middleware
 from wsgi.application.request import Request
@@ -26,6 +26,19 @@ def index(request: Request) -> PlainTextResponse:
     return PlainTextResponse(
         status="200 OK", body="\n".join(routes) if routes else "No routes found."
     )
+
+
+@app.get("/slow")
+def slow(request: Request) -> Iterator[bytes]:
+    """This is to test threading and concurrency"""
+    try:
+        yield b"start\n"
+        for tick in range(1, 4):
+            time.sleep(1)
+            yield f"tick {tick}\n".encode()
+        yield b"end\n"
+    finally:
+        print("Client disconnected or generator finished.")
 
 
 @app.get("/crash")

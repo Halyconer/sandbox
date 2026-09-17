@@ -1,7 +1,7 @@
 """Response classes for the application."""
 
 import json
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Any
 
 
