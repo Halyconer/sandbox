@@ -221,3 +221,6 @@ __marimo__/
 *.md
 !README.md
 !AGENTS.md
+
+# Local study notes: untracked
+notes/

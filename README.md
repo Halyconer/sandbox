@@ -1,7 +1,6 @@
 # Application Engineering Sandbox
 
-Hands-on companion to the backend/application-engineering track in Adrian
-Glass's [`reading.md`](../adrian-glass/reading.md).
+Hands-on companion to a backend/application-engineering study track.
 
 ## Goal
 
@@ -67,9 +66,9 @@ pages as reference after finding the code they describe.
   setup-time route registration versus request-time route execution.
 - [ ] Trace request-context creation and teardown.
 - [ ] Compare a Python `try/except` boundary with Flask error-handler lookup.
-- [ ] Trace `../fitness-app` from Waitress through Flask to a route. Explain
-  why the same database exception becomes an HTTP response in the webhook but
-  a failed process in the CLI job.
+- [ ] Trace a Flask app served by Waitress: from the server through Flask to a
+  route and the database. Explain why the same database exception becomes an
+  HTTP response in a web request but a failed process in a CLI job.
 
 Done when you can explain, from memory: who owns the socket, who creates
 `environ`, who calls the application, and what `start_response` commits to.
@@ -93,20 +92,20 @@ proxy, TLS, deployment.
 
 ## Completion test
 
-Given a request to the fitness app's Hevy webhook, explain the path from the
-network socket to the database and back. For a foreign-key failure, identify:
+Given an HTTP request to a webhook endpoint, explain the path from the network
+socket to the database and back. For a foreign-key failure, identify:
 
 1. where PostgreSQL detects it;
 2. how psycopg represents it in Python;
 3. how it propagates through the call stack;
 4. what the database context manager does;
-5. which outer boundary handles it for a webhook;
-6. why the nightly CLI job gets a different result; and
+5. which outer boundary handles it for a web request;
+6. why the same failure in a CLI job gets a different result; and
 7. which layer translates it into an application outcome or HTTP status.
 
 ## Pacing and play
 
 One main track at a time. Play is allowed — budget it explicitly (a bounded
-side quest such as a graphics weekend), keep the same from-scratch rule, and
+side quest), keep the same from-scratch rule, and
 watch for it quietly replacing track time. If that happens, it is data, not
 failure: name it and rebalance.

@@ -41,6 +41,29 @@ def slow(request: Request) -> Iterator[bytes]:
         print("Client disconnected or generator finished.")
 
 
+@app.get("/busy")
+def busy(request: Request) -> PlainTextResponse:
+    """Burn CPU for the same duration."""
+    deadline = time.monotonic() + 3.0
+    spins = 0
+    while time.monotonic() < deadline:
+        spins += 1
+    return PlainTextResponse(body=f"spun {spins} times\n")
+
+
+@app.get("/faulty_slow")
+def faulty_slow(request: Request) -> Iterator[bytes]:
+    """Now that we are streaming and treading, time to test the edge case where
+    the generator raises mid-stream"""
+    try:
+        yield b"start of faulty slow run \n"
+        time.sleep(2)
+        yield b"Raising below:\n"
+        raise RuntimeError("Forced error for validation")
+    finally:
+        print("Done")
+
+
 @app.get("/crash")
 def crash(request: Request) -> PlainTextResponse:
     """This is for testing crashes in the app and seeing where and how they get handled"""

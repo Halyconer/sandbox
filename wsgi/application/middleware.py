@@ -1,10 +1,8 @@
 """Middlewares for the application."""
 
-import sys
 import time
-import traceback
 
-from wsgi.application.response import HTTPErrorResponse
+from wsgi.server.log import print_log
 
 from .application import WSGIApplication
 
@@ -15,24 +13,12 @@ class Middleware:
 
     def __call__(self, environ, start_response):
         start = time.time()
+        print_log("Hi! This is the Middleware speaking")
 
         def start_response_wrapper(status, headers, exc_info=None):
             return start_response(status, headers, exc_info)
 
-        try:
-            result = self.application(environ, start_response_wrapper)
-        # WSGI error boundary: app exceptions become a 500 response.
-        except Exception:  # noqa: BLE001
-            traceback.print_exc()
-            status = "500 Internal Server Error"
-            response = HTTPErrorResponse(
-                status, body="Internal Server Error, please try again"
-            )
-            start_response(response.status, response.headers, sys.exc_info())
-            return [response.body]
+        result = self.application(environ, start_response_wrapper)
         end = time.time()
         print(f"Application took {end - start} seconds.")
         return result
-
-    def _join(self, data):
-        """Stub for a future self-made join, which will will be a Callable passed to the server, allowing the Middleware to raise in case of a Generator mishap in the future"""

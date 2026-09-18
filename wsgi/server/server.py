@@ -147,31 +147,6 @@ class Connection:
             raise ConnectionError("Client disconnected before completing the request")
         return self._parse_request()
 
-    def failure_path(self, exc_info):
-        if self.response.headers_sent:
-            print_log(
-                f"We encountered an error on our end: {exc_info[1]} \r\n {traceback.format_exc()}",
-                error=True,
-            )
-            self.client_socket.close()
-            return
-        print_log(
-            f"We encountered an error on our end: {exc_info[1]} \r\n {traceback.format_exc()}",
-            error=True,
-        )
-        self.response.body = b"Internal Server Error"
-        self.response.headers = [
-            ("Content-Type", "text/plain"),
-            ("Content-Length", str(len(self.response.body))),
-            ("Connection", "close"),
-        ]
-        self.response.status = "500 Internal Server Error"
-        response = self.response.to_http()
-        self.response.headers_sent = True
-        self.client_socket.sendall(response)
-        self.client_socket.close()
-        print_log("Client socket closed", error=True)
-
     def stream(self, itr: Iterable[bytes]):
         def _chunk(data: bytes) -> bytes:
             return f"{len(data):X}\r\n".encode("iso-8859-1") + data + b"\r\n"
@@ -191,11 +166,7 @@ class Connection:
             first = next(it, None)
             self.client_socket.sendall(headers_response)
             self.response.headers_sent = True
-        # The app-provided iterable may raise anything from iter()/next().
-        except Exception:  # noqa: BLE001
-            self.failure_path(sys.exc_info())
-            return
-        try:
+
             if first is not None:
                 chunks = itertools.chain((first,), it)
             else:
@@ -214,6 +185,28 @@ class Connection:
             close = getattr(itr, "close", None)
             if close is not None:
                 close()
+
+    def failure_handler(self, exc_info):
+        detail = "".join(traceback.format_exception(*exc_info))
+        if self.response.headers_sent:
+            print_log(
+                f"Headers have been sent and we encountered an error: \r\n {detail}",
+                error=True,
+            )
+            return
+        print_log(
+            f"We encountered an error on our end: \r\n {detail}",
+            error=True,
+        )
+        self.response.headers_sent = True
+        self.response.body = b"Internal Server Error"
+        self.response.headers = [
+            ("Content-Type", "text/plain"),
+            ("Content-Length", str(len(self.response.body))),
+            ("Connection", "close"),
+        ]
+        self.response.status = "500 Internal Server Error"
+        self.stream([self.response.body])
 
     def run(self):
         """Read and parse a single HTTP request"""
@@ -253,7 +246,7 @@ class Connection:
                     chunks = self.app(environ, self.response.start_response)
                 # Broad exception to handle whatever the app passes up.
                 except Exception:  # noqa: BLE001
-                    self.failure_path(sys.exc_info())
+                    self.failure_handler(sys.exc_info())
                     break
                 # Now sending back to the client
                 try:
@@ -265,11 +258,13 @@ class Connection:
                     break
                 # Streaming failure after headers may already be committed.
                 except Exception:  # noqa: BLE001
-                    self.failure_path(sys.exc_info())
+                    self.failure_handler(sys.exc_info())
                     break
-        except (ConnectionResetError, BrokenPipeError):
+        except (ConnectionError, BrokenPipeError):
             print_log("Lost connection to client, closing socket", error=True)
-            self.client_socket.close()
+            exc_info = sys.exc_info()
+            detail = "".join(traceback.format_exception(*exc_info))
+            print_log(f"Traceback: \r\n {detail}", error=True)
         finally:
             self.client_socket.close()
             print_log(f"Socket closed with {self.client_address}")

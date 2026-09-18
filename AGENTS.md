@@ -5,7 +5,7 @@
 A deliberately incremental Python application-engineering sandbox: small
 components implemented by hand until the path socket → HTTP → WSGI → Flask →
 database is legible. `README.md` is the learning plan and the source of truth
-for stage order and status. It supports the `../fitness-app` work.
+for stage order and status.
 
 ## Layout
 
