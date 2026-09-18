@@ -80,7 +80,6 @@ class Connection:
         self.response = WSGIResponse()
         self.request = WSGIRequest()
         self._recv_buffer = b""
-        self._send_buffer = b""
 
     def _parse_request(self):
         header_end = self._recv_buffer.find(b"\r\n\r\n")

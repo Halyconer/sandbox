@@ -67,10 +67,3 @@ class NotFoundResponse(PlainTextResponse):
 
     def __init__(self):
         super().__init__(status="404 NOT FOUND", body="Not Found")
-
-
-class HTTPErrorResponse(PlainTextResponse):
-    """A not found response class for the application."""
-
-    def __init__(self, status: str, body: str):
-        super().__init__(status=status, body=body)

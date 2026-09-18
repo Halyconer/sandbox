@@ -6,7 +6,6 @@ import traceback
 from low_level_server import libclient
 
 sel = selectors.DefaultSelector()
-messages = [b"Message 1 from client.", b"Message 2 from client."]
 
 
 def start_connection(host, port, request):

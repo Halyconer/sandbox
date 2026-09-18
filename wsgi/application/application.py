@@ -1,6 +1,5 @@
 """A module for the WSGI application class."""
 
-import sys
 from collections.abc import Iterable
 
 from .request import Request
@@ -24,13 +23,9 @@ class WSGIApplication:
             template_engine (object, optional): The template engine. Defaults to None.
         """
         self.router = Router()
-        self.app_dir = self._get_app_dir()
         self.template_engine = (
             template_engine if template_engine is not None else Template
         )
-
-    def _get_app_dir(self):
-        return sys.path[0]
 
     def get(self, path: str):
         """Register a GET handler.
