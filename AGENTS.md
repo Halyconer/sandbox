@@ -17,6 +17,10 @@ for stage order and status.
 - `wsgi/application/` — hand-built WSGI application: router, middleware,
   request/response classes, templates, error boundary.
 - `wsgi/run.py` — demo app wiring both halves together.
+- `workouts/` — the workouts demo's application code (homemade store,
+  services, CLI). Knows workouts, not HTTP; its routes live in `wsgi/run.py`.
+- `exercises/` — scratch exercises (for example the connection
+  context-manager mock in `database.py`).
 - `notes/` — local study notes. Git tracks only `README.md` and `AGENTS.md`;
   other markdown is ignored.
 
@@ -55,6 +59,15 @@ supplies the output when they want help interpreting it.
 
 Follow the stage order in `README.md`; never introduce a framework or
 abstraction ahead of the exercise that motivates it.
+
+**One-off exception: the workouts demo.** The user asked the agent to
+implement it (`workouts/` and its routes in `wsgi/run.py`) per the design
+spec at `docs/workouts-demo-design.md`, and to teach through explanation. For that work only, the agent may write the
+code and run the spec's verification sequence (server, `curl -v`, CLI,
+`make check`); the user then reruns it and reads the log themselves. The
+demo is an accepted early step into stage 5. If the framework
+(`wsgi/server/`, `wsgi/application/`) seems to need a change, stop and ask.
+The exception ends when the demo is done; it does not extend to later stages.
 
 ## Commits and pull requests
 

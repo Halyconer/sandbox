@@ -19,7 +19,8 @@ boundaries between domain logic, infrastructure, and delivery.
 
 - Implement each exercise by hand before asking AI for an implementation.
 - AI may explain, hint, quiz, review code, and diagnose failures; it must not
-  write the implementation.
+  write the implementation. One-off exception: the workouts demo, which AI
+  implements and teaches through explanation.
 - Keep every exercise small enough that the whole runtime path fits in your
   head.
 - Record observations and failures in notes rather than hiding them behind a
@@ -54,6 +55,9 @@ boundaries between domain logic, infrastructure, and delivery.
   middleware). Outstanding: one end-to-end verification pass (200, 404, 500,
   400, poisoned header, server survives).
 - **4. Flask as a WSGI application — current.**
+- **Workouts demo — next, a deliberate early step into stage 5.** A thin
+  end-to-end rehearsal of the completion test on the hand-built stack, taken
+  before stage 4 finishes. Accepted jump; stage 5 revisits each layer properly.
 
 ### 4. Flask as a WSGI application
 
@@ -72,6 +76,35 @@ pages as reference after finding the code they describe.
 
 Done when you can explain, from memory: who owns the socket, who creates
 `environ`, who calls the application, and what `start_response` commits to.
+
+### Workouts demo (early step into 5)
+
+Rehearse the completion test on code owned end to end: socket → hand-built
+WSGI server → hand-built WSGI application → service → homemade database and
+back. Grows from the context-manager exercise in `exercises/database.py`.
+Design spec: `docs/workouts-demo-design.md`.
+
+Standard library only. `workouts/` sits beside `wsgi/` and knows nothing
+about HTTP; the routes in `wsgi/run.py` are the only code that knows both.
+The framework (`wsgi/server/`, `wsgi/application/`) is not modified.
+
+- [ ] `workouts/store.py` — in-memory store; snapshot transactions under one
+  global lock, logging `BEGIN`/`COMMIT`/`ROLLBACK`; one foreign key
+  (`sets.session_id → sessions`) raising `ForeignKeyViolation(IntegrityError)`.
+- [ ] `workouts/services.py` — `create_session`, `log_set`, `list_sets`; one
+  transaction each; `log_set` is the only place `ForeignKeyViolation` is
+  translated (into `SessionNotFound`).
+- [ ] `wsgi/run.py` — `POST /sessions`, `POST /sets`, `GET /sets?session_id=`
+  over one shared store.
+- [ ] `workouts/cli.py` — `python -m workouts.cli log-set SESSION_ID REPS WEIGHT`
+  over the same services.
+- [ ] Verify with `curl -v` and the server log (spec section 9).
+
+Done when `curl -v` returns `201`, `400` and `404` for a valid set, an invalid
+set and a set on a missing session, with `BEGIN … COMMIT` or
+`BEGIN … ROLLBACK` in the log; the same missing-session call through the CLI
+prints to stderr and exits `1`; `make check` passes; and each completion-test
+question can be answered by pointing at a line of this code.
 
 ### 5. Application architecture
 
